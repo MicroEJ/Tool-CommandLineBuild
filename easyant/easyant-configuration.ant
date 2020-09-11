@@ -1,0 +1,302 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Ant
+	
+	Copyright 2017-2020 MicroEJ Corp. All rights reserved.
+	Use of this source code is governed by a BSD-style license that can be found with this software.
+-->
+
+<project name="easyant-configuration" xmlns:ea="antlib:org.apache.easyant" xmlns:ac="antlib:net.sf.antcontrib">
+
+	<description>
+		EasyAnt configuration targets.
+	</description>
+
+	<dirname property="ant.dir.easyant" file="${ant.file.easyant-configuration}"/>
+
+	<target name="easyant-configuration:check-easyant-is-loaded" extensionOf="easyant:check" description="Checks if EasyAnt is available in Ant classpath.">
+		<fail message="EasyAnt is not in Ant classpath. Restart build with EasyAnt in Ant classpath (using '-lib' option).">
+			<condition>
+				<not><available classname="org.apache.easyant.core.EasyAntEngine" /></not>
+			</condition>
+		</fail>
+	</target>
+
+	<target name="easyant-configuration:add-ivymoduleparser" extensionOf="easyant:configure" description="Adds Ivy module parser into Ant parsers pool.">
+		<ea:registerivymoduleparser />
+	</target>
+
+	<target name="easyant-configuration:configure-build-label" extensionOf="easyant:configure" description="Configure build label for EasyAnt build.">
+		<!--
+			Needed for local builds
+		-->
+		<tstamp>
+			<format property="buildLabel" pattern="yyyyMMdd-HHmm" />
+		</tstamp>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="buildLabel" />
+		</augment>
+	</target>
+
+	<target name="easyant-configuration:configure-publish-targets" extensionOf="easyant:configure" depends="ivy-configuration:configure-resolvers" description="Configure EasyAnt target to run">
+		<!-- personal build -->
+		<condition property="easyant.publish.target" value="publish-local">
+			<equals arg1="${artifacts.publishMicroEJ.resolver}" arg2="publishPersonal"/>
+		</condition>
+
+		<!-- snapshot build -->
+		<condition property="easyant.publish.target" value="publish-shared">
+			<equals arg1="${artifacts.publishMicroEJ.resolver}" arg2="publishMicroEJSnapshot"/>
+		</condition>
+
+		<!-- release build -->
+		<condition property="easyant.publish.target" value="release">
+			<or>
+				<equals arg1="${artifacts.publishMicroEJ.resolver}" arg2="publishMicroEJRelease"/>
+				<equals arg1="${artifacts.publishMicroEJ.resolver}" arg2="publishMicroEJPublic"/>
+			</or>
+		</condition>
+
+		<fail unless="easyant.publish.target" message="'easyant.publish.target' property not defined. 'artifacts.publishMicroEJ.resolver'=${artifacts.publishMicroEJ.resolver}"/>
+	</target>
+
+	<target name="easyant-configuration:configure-release-resolver" extensionOf="easyant:configure" depends="ivy-configuration:configure-resolvers" description="Override EasyAnt release resolver for public publications.">
+		<condition property="release.resolver" value="publishMicroEJPublic">
+			<equals arg1="${artifacts.publishMicroEJ.resolver}" arg2="publishMicroEJPublic"/>
+		</condition>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="release.resolver" />
+		</augment>
+	</target>
+
+	<target name="easyant-configuration:configure-default-easyant-properties" extensionOf="easyant:configure" description="Configure default EasyAnt properties">
+		<property name="user.ivysettings.file" location="${ant.dir.easyant}/ivy/ivysettings.xml"/>
+		<property name="easyant.ivysettings.file" location="${user.ivysettings.file}"/>
+		<property name="easyant.module.filename" value="module.ivy"/>
+		<property name="project.ivy.settings.file" location="${easyant.ivysettings.file}"/>
+		<property name="user.easyant.ivysettings.file" location="${easyant.ivysettings.file}"/>
+		<property name="easyant.configuration.file" location="${ant.dir.easyant}/easyant-conf.xml"/>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="user.ivysettings.file" />
+			<propertyref name="project.ivy.settings.file"  />
+			<propertyref name="user.easyant.ivysettings.file" />
+		</augment>
+	</target>
+
+	<target name="easyant-configuration:load-module-properties:init" extensionOf="easyant:configure" depends="easyant-configuration:configure-default-easyant-properties">
+		<basename file="${easyant.module.filename}" property="easyant.module.filename.without.extension" suffix=".ivy"/>
+		<property name="easyant.module.custom.properties.file" location="${easyant.module.dir}/${easyant.module.filename.without.extension}.properties" />
+		<condition property="has.module.properties.file" value="true">
+			<available file="${easyant.module.custom.properties.file}" />
+		</condition>
+	</target>
+
+	<target name="easyant-configuration:load-module-properties:load" extensionOf="easyant:configure" depends="easyant-configuration:load-module-properties:init" if="has.module.properties.file">
+		<echo message="Loading properties from ${easyant.module.custom.properties.file}" />
+		<loadproperties srcfile="${easyant.module.custom.properties.file}" prefix="custom.module.properties" />
+		<propertyset id="custom.module.properties">
+			<propertyref prefix="custom.module.properties" />
+			<globmapper from="custom.module.properties.*" to="*" />
+		</propertyset>
+		<augment id="easyant.build.properties">
+			<propertyset refid="custom.module.properties" />
+		</augment>
+	</target>
+
+	<target name="easyant-configuration:check-metabuild" extensionOf="easyant:configure" depends="easyant-configuration:configure-default-easyant-properties">
+		<loadfile property="easyant.module.data" srcfile="${easyant.module.dir}/${easyant.module.filename}"/>
+		<ac:for param="easyant.module.line" delimiter="${line.separator}" list="${easyant.module.data}">
+			<sequential>
+				<ac:propertyregex property="buildtype" input="@{easyant.module.line}"
+					regexp="&lt;.*?:build.*?module=[&quot;'](.*?)[&quot;'].*?&gt;" select="\1"/>
+				<!-- <XXX:build ... module="XXX" ...> -->
+			</sequential>
+		</ac:for>
+		<condition property="buildtype.metabuild">
+			<equals arg1="${buildtype}" arg2="microej-meta-build"/>
+		</condition>
+		<echo message="Buildtype: ${buildtype}"/>
+	</target>
+
+	<target name="easyant-configuration:check-fork" extensionOf="easyant:configure" depends="easyant-configuration:configure-default-easyant-properties" description="Checks if EasyAnt build must be done in a forked JVM.">
+		<condition property="easyant.fork.build" value="true">
+			<or>
+				<isset property="easyant.fork.build" /> <!-- not needed, set by user, already defined, just to be exhaustive -->
+				<isset property="easyant.inject.easyant.fork.build" />
+				<isset property="custom.module.properties.easyant.fork.build" />
+				<isset property="buildtype.metabuild" />
+			</or>
+		</condition>
+		<property name="easyant.fork.mode" value="easyant" description="Build fork mode: use 'easyant' to directly run EasyAnt, or 'ant' to run build using Ant. Default is 'easyant'"/>
+		<condition property="easyant.fork.main.class" value="org.apache.easyant.core.EasyAntMain">
+			<and>
+				<istrue value="${easyant.fork.build}"/>
+				<equals arg1="${easyant.fork.mode}" arg2="easyant" />
+			</and>
+		</condition>
+		<condition property="easyant.fork.easyant.configuration.argument" value="-configfile '${easyant.configuration.file}'" else="">
+			<and>
+				<istrue value="${easyant.fork.build}"/>
+				<equals arg1="${easyant.fork.mode}" arg2="easyant" />
+			</and>
+		</condition>
+		<condition property="easyant.fork.main.class" value="org.apache.tools.ant.Main">
+			<and>
+				<istrue value="${easyant.fork.build}"/>
+				<equals arg1="${easyant.fork.mode}" arg2="ant" />
+			</and>
+		</condition>
+		<fail message="Unknown fork mode. Only 'easyant' and 'ant' are supported">
+			<condition>
+				<and>
+					<istrue value="${easyant.fork.build}"/>
+					<not><isset property="easyant.fork.main.class" /></not>
+				</and>
+			</condition>
+		</fail>
+	</target>
+
+	<target name="easyant-configuration:configure-skip-default-versionstrategy" extensionOf="easyant:configure" description="Skip EasyAnt built-in version strategy.">
+		<!-- 
+			Argument to set to ignore the easyant default version strategy.
+			
+			Default version computing in easyant is different from MicroEJ version computing.
+			When publishing in snapshot, the version is under the form ${version}-local-${buildlabel}.
+			For MicroEJ, it is ${version}-RC${buildlabel}. The easyant plugin "microej-version-strategy" define
+			correctly this strategy but is in conflict with "default-version-strategy". 
+			
+			All the easyant core buildtypes use the "default-version-strategy". To use the "microej-version-strategy"
+			just add a "ea:plugin" tag in the "info" tag in the ivy file :
+			<ea:plugin org="com.is2t.easyant.plugins" module="microej-version-strategy" revision="0.1+"/>
+			Then to avoid conflict with "default-version-strategy", tell easyant to ignore it using the argument
+			${easyant.ignore.defaultVersionStrategy}. For example:		
+
+			This argument is not necessary when using build types defined by MicroEJ. MicroEJ build types use the
+			"microej-version-strategy" whereas EasyAnt build types use the "default-version-strategy".
+		-->
+		<property name="skip.org.apache.easyant.plugins#default-version-strategy;0.9" value="true"/>
+		<augment id="easyant.build.properties">
+			<propertyref name="skip.org.apache.easyant.plugins#default-version-strategy;0.9" />
+		</augment>
+	</target>
+
+	<target name="easyant-configuration:define-easyant-properties-macro" extensionOf="easyant:configure" depends="easyant-configuration:configure-default-easyant-properties">
+		<macrodef name="easyant-gather-properties">
+			<sequential>
+				<propertyset id="easysant.custom.build.properties">
+					<propertyref regex="easyant.inject.*"/>
+					<mapper type="glob" from="easyant.inject.*" to="*" />
+				</propertyset>
+				<property environment="env" />
+				<propertyset id="easysant.custom.env.build.properties">
+					<propertyref regex="env.easyant.inject.*"/>
+					<mapper type="glob" from="env.easyant.inject.*" to="*" />
+				</propertyset>
+			</sequential>
+		</macrodef>
+
+		<macrodef name="easyant-print-gather-properties">
+			<sequential>
+				<echo message="Following properties are injected into EasyAnt build:" />
+				<echoproperties>
+					<propertyset refid="easyant.build.properties" />
+					<propertyset refid="easysant.custom.build.properties" />
+					<propertyset refid="easysant.custom.env.build.properties" />
+				</echoproperties>
+			</sequential>
+		</macrodef>
+	</target>
+
+	<target name="easyant-configuration:define-easyant-macro:same-vm" unless="easyant.fork.build" extensionOf="easyant:configure" depends="easyant-configuration:check-fork,easyant-configuration:define-easyant-properties-macro">
+		<macrodef name="easyant">
+			<attribute name="targets" default="${easyant.publish.target}" description="List of targets to invoke, separated by a space."/>
+			<attribute name="basedir" />
+			<attribute name="module.filename" default="${easyant.module.filename}"/>
+			<attribute name="module.file" default="@{basedir}/@{module.filename}"/>
+			<element name="properties" optional="yes"/>
+			<sequential>
+				<easyant-gather-properties />
+				<easyant-print-gather-properties />
+				<ea:print-version />
+				<ant antfile="@{module.file}" inheritall="false" inheritrefs="false" dir="@{module.file}/..">
+					<target name="clean" />
+					<target name="@{targets}" />
+					<propertyset refid="easyant.build.properties" />
+					<propertyset refid="easysant.custom.build.properties" />
+					<propertyset refid="easysant.custom.env.build.properties" />
+					<properties />
+				</ant>
+			</sequential>
+		</macrodef>
+	</target>
+
+	<target name="easyant-configuration:define-easyant-macro:forked-vm" if="easyant.fork.build" extensionOf="easyant:configure" depends="easyant-configuration:check-fork,easyant-configuration:define-easyant-properties-macro">
+		<macrodef name="easyant">
+			<attribute name="targets" default="${easyant.publish.target}" description="List of targets to invoke, separated by a space."/>
+			<attribute name="basedir" />
+			<attribute name="module.filename" default="${easyant.module.filename}"/>
+			<attribute name="module.file" default="@{basedir}/@{module.filename}"/>
+			<element name="properties" optional="yes"/>
+			<sequential>
+				<echo message="EasyAnt build will be run in a forked JVM (property 'easyant.fork.build' is set)." />
+				<property name="easyant.fork.build.max.memory" value="1024M" />
+				<easyant-gather-properties />
+				<easyant-print-gather-properties />
+				<ea:print-version />
+				<condition property="easyant-configuration-forked-vm.trustStore.property" value="-Djavax.net.ssl.trustStore=${javax.net.ssl.trustStore}" else="">
+					<isset property="javax.net.ssl.trustStore"/>
+				</condition>
+				<condition property="easyant-configuration-forked-vm.trustStore.password.property" value="-Djavax.net.ssl.trustStorePassword=${javax.net.ssl.trustStorePassword}" else="">
+					<isset property="javax.net.ssl.trustStorePassword"/>
+				</condition>
+				<condition property="easyant-configuration-forked-vm.defaultlog.property" value="-Dorg.apache.commons.logging.simplelog.defaultlog=${org.apache.commons.logging.simplelog.defaultlog}" else="">
+					<isset property="org.apache.commons.logging.simplelog.defaultlog"/>
+				</condition>
+				<condition property="easyant-configuration-forked-vm.logclass.property" value="-Dorg.apache.commons.logging.Log=${org.apache.commons.logging.Log}" else="">
+					<isset property="org.apache.commons.logging.Log"/>
+				</condition>
+				<condition property="easyant.fork.easyant.verbose.argument" value="-v -d" else="">
+					<equals arg1="${easyant.verbose}" arg2="true" />
+				</condition>
+
+				<java classname="${easyant.fork.main.class}" fork="true" failonerror="true" dir="@{basedir}">
+					<!-- Restitute original classpath -->
+					<classpath>
+						<path path="${java.class.path}" />
+					</classpath>
+					<!-- Set max memory for forked JVM, default is quite high, but customizable by user -->
+					<jvmarg line="-Xmx${easyant.fork.build.max.memory}"/>
+
+					<!-- Redirect truststore settings if any -->
+					<jvmarg line="${easyant-configuration-forked-vm.trustStore.property}"/>
+					<jvmarg line="${easyant-configuration-forked-vm.trustStore.password.property}"/>
+
+					<!-- Redirect log settings if any -->
+					<jvmarg line="${easyant-configuration-forked-vm.defaultlog.property}"/>
+					<jvmarg line="${easyant-configuration-forked-vm.logclass.property}"/>
+
+					<!-- 
+						Set ModuleIvyProjectHelper class as default ProjectHelper in forked VM, to allow to
+						parse Ivy module files 
+					-->
+					<sysproperty key="org.apache.tools.ant.ProjectHelper" value="org.apache.easyant.core.ant.helper.ModuleIvyProjectHelper"/>
+
+					<!-- Ant build properties -->
+					<arg line="${easyant.fork.easyant.configuration.argument}" />
+					<arg line="-f '@{module.file}'" />
+					<arg line="-Dbasedir='@{module.file}/..'" />
+					<arg line="${easyant.fork.easyant.verbose.argument}" />
+					<arg line="clean @{targets}" />
+					<syspropertyset refid="easyant.build.properties" />
+					<syspropertyset refid="easysant.custom.build.properties" />
+					<syspropertyset refid="easysant.custom.env.build.properties" />
+					<properties />
+				</java>
+			</sequential>
+		</macrodef>
+	</target>
+
+</project>

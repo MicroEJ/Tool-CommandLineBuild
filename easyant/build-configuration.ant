@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Ant
+	
+	Copyright 2017-2020 MicroEJ Corp. All rights reserved.
+	Use of this source code is governed by a BSD-style license that can be found with this software.
+-->
+
+<project name="build-configuration">
+	
+	<description>
+		Build configuration targets.
+	</description>
+	
+	<dirname property="ant.dir.easyant" file="${ant.file.build-configuration}"/>
+	
+	<target name="build-configuration:guess-environment" extensionOf="easyant:configure" description="Guess in which environment build is done.">
+
+		<condition property="buildExecutedOnJenkins" value="true" else="false">
+			<!-- check some Jenkins properties -->
+			<or>
+				<isset property="jenkins.user.id"/>
+				<isset property="jenkins.build.id"/>
+			</or>
+		</condition>
+			
+		<!-- 
+			Check if we are running the build in a personal build or in local.
+			- If we are executing the script in local, then the JBE/Jenkins properties may not be defined.
+			- If we are executing the script on a JBE/Jenkins, then the JBE/Jenkins properties are defined
+				- If we are on a personalBuild, the personalBuild property is already set to true by the JBE, so this definition do nothing
+				- If we are not on a personalBuild, the personalBuild property is set to false 
+		-->
+		<condition property="personalBuild"
+			value="false"
+			else="true"
+		>
+			<istrue value="${buildExecutedOnJenkins}"/>
+		</condition>
+		
+		<property environment="env" />
+		<condition property="buildUsingGitSCM" value="true" else="false">
+			<!-- Building on Jenkins -->
+			<and>
+				<isset property="env.GIT_URL" />
+				<isset property="env.GIT_BRANCH" />
+			</and>
+		</condition>
+			
+		<augment id="easyant.build.properties">
+			<propertyref name="buildExecutedOnJenkins" />
+			<propertyref name="buildUsingGitSCM" />
+			<propertyref name="personalBuild" />
+		</augment>
+	</target>
+	
+	<target name="build-configuration:configure-jazz-like-env" extensionOf="easyant:configure" depends="build-configuration:guess-environment" description="Configure Jazz-like environment when building locally or on Jenkins.">
+		<!-- Some scripts use Jazz properties. To keep compatibility, map those properties even if building on Jenkins -->
+		<property environment="env" />
+		<!-- 
+			In personalBuild, ivySettings publish the result in share/tmp/${buildRequesterUserId}/snapshots.
+			The buildRequesterUserId is defined by the JBE. When this script is executed in local, the buildRequesterUserId
+			property is not defined, then use the user.name property instead.
+			When build is on Jenkins, buildRequesterUserId is defined by Jenkins with property jenkins.user.id
+		-->
+		<condition property="buildRequesterUserId" value="${jenkins.user.id}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="jenkins.user.id" />
+			</and>
+		</condition>
+		<property name="buildRequesterUserId" value="${user.name}"/>
+	
+		<condition property="requestUUID" value="${jenkins.build.id}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="jenkins.build.id" />
+			</and>
+		</condition>
+
+		<condition property="buildEngineId" value="${jenkins.node.name}-${env.EXECUTOR_NUMBER}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="jenkins.node.name" />
+				<isset property="env.EXECUTOR_NUMBER" />
+			</and>
+		</condition>
+		<condition property="buildEngineId" value="${jenkins.node.name}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="jenkins.node.name" />
+			</and>
+		</condition>
+				
+		<condition property="buildDefinitionId" value="${env.JOB_NAME}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="env.JOB_NAME" />
+			</and>
+		</condition>
+		
+		<condition property="buildEngineHostName" value="${env.HOSTNAME}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="env.HOSTNAME" />
+			</and>
+		</condition>
+	
+		<condition property="repositoryAddress" value="${env.GIT_URL}" else="${env.JENKINS_URL}">
+			<and>
+				<isset property="buildExecutedOnJenkins" />
+				<isset property="env.GIT_URL" />
+			</and>
+		</condition>
+		
+		<property name="BUILD_USER_ID" value="${buildRequesterUserId}" />
+
+		<augment id="easyant.build.properties">
+			<propertyref name="buildRequesterUserId" />
+			<propertyref name="requestUUID" />
+			<propertyref name="buildEngineId" />
+			<propertyref name="buildDefinitionId" />
+			<propertyref name="buildEngineHostName" />
+			<propertyref name="repositoryAddress" />
+			<propertyref name="BUILD_USER_ID" />
+		</augment>
+	</target>
+	
+	<target name="build-configuration:check-jenkins-custom-properties" extensionOf="easyant:configure" if="buildExecutedOnJenkins" description="Checks if a custom properties file from Jenkins is available">
+		<property environment="env" />
+		<condition property="jenkins.has.custom.properties.file" value="true">
+			<isset property="env.JENKINS_CUSTOM_PROPERTIES_FILE" />
+		</condition>
+	</target>
+	
+	<target name="build-configuration:load-jenkins-custom-properties" extensionOf="easyant:configure" depends="build-configuration:check-jenkins-custom-properties" if="jenkins.has.custom.properties.file" description="Load custom properties file from Jenkins is available">
+		<loadproperties srcfile="${env.JENKINS_CUSTOM_PROPERTIES_FILE}" />
+	</target>
+	
+	<target name="build-configuration:load-properties-file-from-environment" extensionOf="easyant:configure" description="Loads properties file referenced by environment variables into EasyAnt context.">
+		<property environment="env" />
+		<script language="javascript">
+			<![CDATA[
+				var keys = project.getProperties().keys();
+				var key = null;
+				var value = null;
+				var propertyPrefix = "CUSTOM_PROPERTIES_FILE";
+			
+				var echoTask = project.createTask("echo");
+				while (keys.hasMoreElements()) {
+					key = keys.nextElement();
+					if (key.startsWith("env." + propertyPrefix) || key.startsWith(propertyPrefix)) {
+						value = project.getProperty(key);
+						echoTask.setMessage("Loading properties file " + value);
+						echoTask.perform();
+						var loadPropertiesTask = project.createTask("loadproperties");
+						loadPropertiesTask.setSrcFile(new java.io.File(value));
+						loadPropertiesTask.perform();
+					}
+				}
+			]]>
+		</script>
+	</target>
+	
+</project>

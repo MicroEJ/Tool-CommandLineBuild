@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Ant
+	
+	Copyright 2017-2020 MicroEJ Corp. All rights reserved.
+	Use of this source code is governed by a BSD-style license that can be found with this software.
+-->
+
+<project name="build-module" default="easyant:clean">
+
+	<fail unless="easyant.module.dir" message="Set 'easyant.module.dir' property (directory where the easyant module file to build is defined)." />
+	
+	<dirname property="ant.dir.build-module" file="${ant.file.build-module}"/>
+
+	<extension-point name="easyant:check" description="Runs some tests before trying to build with EasyAnt." />
+	<extension-point name="easyant:configuration-ready" depends="easyant:check" description="Targets ran before EasyAnt configuration. Useful to setup environment or override EasyAnt built-in properties." />
+	<extension-point name="easyant:configure" depends="easyant:configuration-ready" description="Targets that configure EasyAnt environment." />
+	<extension-point name="easyant:build-ready" depends="easyant:configure" description="Targets ran before actual EasyAnt build." />
+	<extension-point name="easyant:build" depends="easyant:build-ready" description="Targets that configure EasyAnt environment." />
+	<extension-point name="easyant:clean" depends="easyant:build" description="Targets to do some cleaning after artifact(s) build." />
+
+	<propertyset id="easyant.build.properties" description="Set of Ant properties to pass to EasyAnt build." />
+
+	<fail message="Given user script file does not exist (script file is '${easyant.user.script.file}')">
+		<condition>
+			<and>
+				<isset property="easyant.user.script.file" />
+				<not><available file="${easyant.user.script.file}" type="file" /></not>
+			</and>
+		</condition>
+	</fail>
+	<import file="${easyant.user.script.file}" optional="true" description="Import user script to allow him to plug targets into predefined extension points." />
+	
+	<import file="build-configuration.ant"/>
+	<import file="easyant-configuration.ant"/>
+	<import file="ivy-configuration.ant"/>
+	
+	<target name="common-entrypoint:build-module" extensionOf="easyant:build">
+		<easyant basedir="${easyant.module.dir}" />
+	</target>
+	
+	
+</project> 

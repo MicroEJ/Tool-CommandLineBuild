@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Ant
+	
+	Copyright 2017-2020 MicroEJ Corp. All rights reserved.
+	Use of this source code is governed by a BSD-style license that can be found with this software.
+-->
+
+<project name="ivy-configuration" xmlns:ivy="antlib:org.apache.ivy.ant">
+	
+	<description>
+		Ivy configuration targets.
+	</description>
+	
+	<dirname property="ant.dir.easyant" file="${ant.file.ivy-configuration}"/>
+
+	
+	<target name="ivy-configuration:check-ivy-is-loaded" extensionOf="easyant:check" description="Checks if Ivy is available in Ant classpath.">
+		<fail message="Ivy is not in Ant classpath. Restart build with Ivy in Ant classpath (using '-lib' option).">
+			<condition>
+				<not><available classname="org.apache.ivy.Ivy" /></not>
+			</condition>
+		</fail>
+	</target>
+	
+	<target name="ivy-configuration:configure-logs" extensionOf="easyant:configure" depends="build-configuration:guess-environment" description="Configure logs.">
+		
+		<!-- In case of authentication on Artifactory, an Ivy dependency uses Apache Commons logging
+			  to output data, using INFO level. This is really anoying. Shut it down -->
+		<script language="javascript">
+			java.lang.System.setProperty("org.apache.commons.logging.simplelog.defaultlog", "warn");
+			project.setProperty("org.apache.commons.logging.simplelog.defaultlog", "warn");
+			java.lang.System.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.SimpleLog");
+			project.setProperty("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.SimpleLog");
+		</script>
+	</target>
+	
+	<target name="ivy-configuration:configure-levels" extensionOf="easyant:configure" depends="build-configuration:guess-environment" description="Configure Ivy fetch/publish levels.">
+		<!--
+			In a release build definition, set this property to "release" in order
+			to automatically publish the MicroEJ and Internal artifacts into a release
+			repository.
+
+			By default, use snapshot
+		-->
+		<property environment="env" />
+		<property name="artifacts.publish.level" value="snapshot"/>
+
+		<!--
+			Set this property to "release" in order
+			to fetch only from release repositories.
+			
+			By default, use same level as publish level 
+		-->
+		<property name="artifacts.fetch.level" value="${artifacts.publish.level}"/> 
+		
+		<fail message="Cannot set 'artifacts.fetch.level' to ${artifacts.fetch.level} when 'artifacts.publish.level' is set to ${artifacts.publish.level}">
+			<condition>
+				<and>
+					<equals arg1="${artifacts.publish.level}" arg2="release" />
+					<not><equals arg1="${artifacts.fetch.level}" arg2="${artifacts.publish.level}" /></not>
+				</and>
+			</condition>
+		</fail>
+				
+		<augment id="easyant.build.properties">
+			<propertyref name="artifacts.publish.level" />
+			<propertyref name="artifacts.fetch.level" />
+		</augment>
+	</target>
+	
+	<target name="ivy-configuration:configure-resolvers" extensionOf="easyant:configure" depends="build-configuration:guess-environment, ivy-configuration:configure-levels" description="Configure Ivy resolvers.">
+		<!--
+			In personalBuild, if you want to publish the result somewhere else, you can override the personalBuilds.dir property.
+			For example: 
+			<property name="personalBuilds.dir" location="/home/${user.name}/releases/"/>	
+		-->
+		
+		<!-- Define the suffix of the resolver (internal property) -->
+		<condition property="artifacts.publish.resolver.suffix"	value="Public">
+			<equals arg1="public" arg2="${artifacts.publish.level}"/>
+		</condition>
+		
+		<condition property="artifacts.publish.resolver.suffix"
+			value="Release"
+			else="Snapshot"
+		>
+			<equals arg1="release" arg2="${artifacts.publish.level}"/>
+		</condition>
+		
+		<!-- Resolver to use when you want to publish a MicroEJ artifact -->
+		<condition property="artifacts.publishMicroEJ.resolver"
+			value="publishPersonal"
+			else="publishMicroEJ${artifacts.publish.resolver.suffix}"
+		>
+			<istrue value="${personalBuild}"/>
+		</condition>
+		
+		<!-- Resolver to use when you want to publish an Internal artifact -->
+		<condition property="artifacts.publishIntern.resolver"
+			value="publishPersonal"
+			else="publishIntern${artifacts.publish.resolver.suffix}"
+		>
+			<istrue value="${personalBuild}"/>
+		</condition>
+		
+		<!-- Resolver to use when you want to publish an WorkingEnvs artifact -->
+		<condition property="artifacts.workingEnvs.resolver"
+			value="publishPersonalWorkingEnvs"
+			else="publishWorkingEnvs"
+		>
+			<istrue value="${personalBuild}"/>
+		</condition>
+	
+		<!-- artifacts.resolver property is used in ivysettings.xml as the default resolver for fetches -->
+		<!-- In JBE build use public resolver in public, release resolver in release, and snapshot resolver in snapshot -->
+		<condition property="artifacts.resolver"
+			value="publishMicroEJPublic"
+		>
+			<equals arg1="public" arg2="${artifacts.fetch.level}"/> 
+		</condition>
+		
+		<!-- modules.resolver property is used in ivysettings.xml as the default resolver for fetches -->
+		<!-- In public level use release resolver, otherwise use the default value (see ivysettings.xml) -->
+		<condition property="modules.resolver" value="fetchRelease">
+			<equals arg1="public" arg2="${artifacts.fetch.level}"/> 
+		</condition>
+		
+		<!-- artifacts.resolver property is used in ivysettings.xml as the default resolver for fetches -->
+		<!-- In JBE build use release resolver in release, and snapshot resolver in snapshot -->
+		<condition property="artifacts.resolver"
+			value="fetchRelease"
+		>
+			<equals arg1="release" arg2="${artifacts.fetch.level}"/> 
+		</condition>
+		<!-- In personal build use personal artifacts resolver -->
+		<condition property="artifacts.resolver"
+			value="fetchPersonal"
+			else="fetchSnapshot"
+		> 
+			<istrue value="${personalBuild}"/> 
+		</condition>
+			
+		<augment id="easyant.build.properties">
+			<propertyref name="modules.resolver" />
+			<propertyref name="artifacts.resolver" />
+			<propertyref name="artifacts.workingEnvs.resolver" />
+			<propertyref name="artifacts.publishIntern.resolver" />
+			<propertyref name="artifacts.publishMicroEJ.resolver" />
+		</augment>
+	</target>
+	
+	<target name="ivy-configuration:configure-status" extensionOf="easyant:configure" depends="ivy-configuration:configure-levels" description="Configure Ivy status.">
+		<!-- Define the module status (integration/release) -->
+		<condition property="artifacts.publish.status" value="release" else="integration">
+			<or>
+				<equals arg1="release" arg2="${artifacts.publish.level}"/>
+				<equals arg1="public" arg2="${artifacts.publish.level}"/>
+			</or>
+		</condition>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="artifacts.publish.status" />
+		</augment>
+	</target>
+
+	<target name="ivy-configuration:configure-cache" extensionOf="easyant:configure" depends="build-configuration:guess-environment, ivy-configuration:configure-resolvers" description="Configure Ivy cache directory.">
+		<!-- 
+			Cache folder policies:
+			- when executing in local: use default cache folder
+			- when executing on a build engine/Jenkins:
+				- for a personal build or a NON-release build: use buildEngine specific cache folder
+				- for a release build (${artifacts.resolver}==fetchRelease): use a unique cache folder
+		-->
+		<condition property="request.cache.dir" value="${ant.dir.easyant}/../cache/${requestUUID}">
+			<or>
+				<equals arg1="${artifacts.resolver}" arg2="fetchRelease"/>
+				<equals arg1="${artifacts.resolver}" arg2="publishMicroEJPublic"/>
+			</or>
+		</condition>
+		<condition property="request.cache.dir" value="${java.io.tmpdir}/buildEngines/ivy/${buildEngineId}">
+			<istrue value="${buildExecutedOnJenkins}"/>
+		</condition>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="request.cache.dir" />
+		</augment>
+	</target>
+
+	<target name="ivy-configuration:configure-local-repositories" extensionOf="easyant:configure" depends="build-configuration:guess-environment" description="Configure Ivy MicroEJ repositories in a local environment.">
+
+		<property file="${ant.dir.easyant}/../local-build.properties"/>
+
+		<fail message="Cannot find paths to local modules repositories in file 'local-build.properties'. Set properties 'microej.central.repository.dir', 'snapshot.repository.dir' and 'release.repository.dir'.">
+			<condition>
+				<and>
+				    <isfalse value="${buildExecutedOnJenkins}"/>
+					<or>
+						<not><isset property="microej.central.repository.dir"/></not>
+						<not><isset property="snapshot.repository.dir"/></not>
+						<not><isset property="release.repository.dir"/></not>
+					</or>
+				</and>
+			</condition>
+		</fail>
+
+		<augment id="easyant.build.properties">
+			<propertyref name="microej.central.repository.dir" />
+			<propertyref name="snapshot.repository.dir" />
+			<propertyref name="release.repository.dir" />
+		</augment>
+
+	</target>
+	
+</project>
