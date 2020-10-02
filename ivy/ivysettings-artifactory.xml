@@ -10,7 +10,7 @@
   <property name="Artifactory_Repository" value="http://localhost:8081/artifactory" override="false"/>
   <property name="personalBuilds.dir" value="${user.home}/.ivy2/repository/" override="false"/>
   
-  <!-- Map generic easyant resolver (*.resolver) with custom resolver (publish*) -->
+  <!-- Map MMM resolvers (*.resolver) to custom resolver (publish*) -->
   <property name="release.resolver" value="publishMicroEJRelease" override="false"/>
   <property name="shared.resolver" value="publishSnapshot" override="false"/>
   <property name="local.resolver" value="publishPersonal" override="false"/>
@@ -54,14 +54,14 @@
 		<ivy pattern="${Artifactory_Repository}/libs-release-local/[organization]/[module]/[branch]/[revision]/ivy-[revision].xml" />
 	</url>
 	
-	<url name="fetchMicroEJEasyant" m2compatible="true">
-		<artifact pattern="${Artifactory_Repository}/microej-easyant-release-local/[organization]/[module]/[branch]/[revision]/[artifact]-[revision](-[classifier]).[ext]" />
-		<ivy pattern="${Artifactory_Repository}/microej-easyant-release-local/[organization]/[module]/[branch]/[revision]/ivy-[revision].xml" />
+	<url name="fetchMicroEJBuild" m2compatible="true">
+		<artifact pattern="${Artifactory_Repository}/microej-build-repository/[organization]/[module]/[branch]/[revision]/[artifact]-[revision](-[classifier]).[ext]" />
+		<ivy pattern="${Artifactory_Repository}/microej-build-repository/[organization]/[module]/[branch]/[revision]/ivy-[revision].xml" />
 	</url>
 	
-	<url name="fetchMicroEJLibs" m2compatible="true">
-		<artifact pattern="${Artifactory_Repository}/microej-libs-release-local/[organization]/[module]/[branch]/[revision]/[artifact]-[revision](-[classifier]).[ext]" />
-		<ivy pattern="${Artifactory_Repository}/microej-libs-release-local/[organization]/[module]/[branch]/[revision]/ivy-[revision].xml" />
+	<url name="fetchMicroEJModules" m2compatible="true">
+		<artifact pattern="${Artifactory_Repository}/microej-module-repository/[organization]/[module]/[branch]/[revision]/[artifact]-[revision](-[classifier]).[ext]" />
+		<ivy pattern="${Artifactory_Repository}/microej-module-repository/[organization]/[module]/[branch]/[revision]/ivy-[revision].xml" />
 	</url>
 	
 	<!-- Publish resolver in release: publish in Intern release repository -->
@@ -104,8 +104,8 @@
 	</url>
 	
 	<chain name="fetchRelease">
-		<resolver ref="fetchMicroEJEasyant"/>
-		<resolver ref="fetchMicroEJLibs"/>
+		<resolver ref="fetchMicroEJBuild"/>
+		<resolver ref="fetchMicroEJModules"/>
 		<resolver ref="fetchArtifactoryRelease"/>
 		<resolver ref="publishMicroEJPublic"/> 
 	</chain>
