@@ -55,7 +55,7 @@ SET ANT_HOME=%BUILD_KIT_HOME%\ant
 goto :theend
 
 :usage
-@echo Usage: %0 ^<PROJECT_DIRECTORY^> ^<BUILD_MODE^> [^<PROPERTIES_FILE^>]
+@echo Usage: %0 ^<PROJECT_DIRECTORY^> [^<BUILD_MODE^>] [^<PROPERTIES_FILE^>]
 @echo ^<PROJECT_DIRECTORY^>: The absolute path of the directory to be built.
 @echo ^<BUILD_MODE^>: One of `release`, `fetchRelease`, `snapshot` or `personal`. Optional, defaults to `personal`.
 @echo ^<PROPERTIES_FILE^>: An optional properties file with build specific module options (build type options are prefixed with `easyant.inject.`)

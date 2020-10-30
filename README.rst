@@ -21,7 +21,7 @@ The latest MicroEJ SDK version can be downloaded at https://developer.microej.co
 Prerequisites
 -------------
 
-#. Locate your JDK installation directory (typically something like ``C:\Program Files\Java\jdk1.8.0_[version]``)
+#. Locate your JDK installation directory (typically something like ``C:\Program Files\Java\jdk1.8.0_[version]`` on Windows or ``/usr/lib/jvm/java-[version]-openjdk-amd64/jre`` on GNU/Linux)
 #. Set the environment variable ``MICROEJ_BUILD_JDK_HOME`` to point to this directory.
 #. Clone this repository with ``git clone --recursive https://github.com/MicroEJ/Tool-CommandLineBuild``.
 
@@ -125,14 +125,20 @@ Build the Module
 ----------------
 
 #.  Open a terminal from the directory of this README.
-#.  Type the following command:
+#.  Type the following command (on Windows):
+
+- on Windows:
 
    ``.\build_module_local.bat \path\to\module snapshot``
 
-The build starts.
-On successful build, the module is published to ``[snapshot.repository.dir]\[organization]\[module]\[M.m.p-RCYYYYMMDDHHmm]``.
+- on GNU/Linux:
 
-Please note that executing the command ``build_module_local.bat`` with no arguments will print the usage description.
+   ``./build_module_local.sh /path/to/module snapshot``
+
+The build starts.
+On successful build, the module is published to ``[snapshot.repository.dir]/[organization]/[module]/[M.m.p-RCYYYYMMDDHHmm]``.
+
+Please note that executing the command ``build_module_local.[bat|sh]`` with no arguments will print the usage description.
 
 
 Available Build Modes
@@ -151,4 +157,10 @@ Providing custom build options is possible by specifying an additional propertie
 Create a file listing all the custom properties prefixed with ``easyant.inject.``. 
 Then build the module with the following command:
 
-``.\build_module_local.bat \path\to\module snapshot \path\to\custom\build.properties``
+- on Windows
+
+    ``.\build_module_local.bat \path\to\module snapshot \path\to\custom\build.properties``
+
+- on GNU/Linux
+
+    ``./build_module_local.sh /path/to/module snapshot /path/to/custom/build.properties``
