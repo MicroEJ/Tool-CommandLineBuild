@@ -293,6 +293,7 @@
 					<syspropertyset refid="easyant.build.properties" />
 					<syspropertyset refid="easysant.custom.build.properties" />
 					<syspropertyset refid="easysant.custom.env.build.properties" />
+					<sysproperty key="microej.buildtypes.repository.dir" value="${microej.buildtypes.repository.dir}" />
 					<properties />
 				</java>
 			</sequential>
