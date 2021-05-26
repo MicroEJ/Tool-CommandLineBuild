@@ -2,7 +2,7 @@
 <!--
 	Ant
 	
-	Copyright 2017-2020 MicroEJ Corp. All rights reserved.
+	Copyright 2017-2021 MicroEJ Corp. All rights reserved.
 	Use of this source code is governed by a BSD-style license that can be found with this software.
 -->
 
@@ -261,6 +261,9 @@
 				<condition property="easyant.fork.easyant.verbose.argument" value="-v -d" else="">
 					<equals arg1="${easyant.verbose}" arg2="true" />
 				</condition>
+
+				<!-- Set default value of microej.buildtypes.repository.dir property if not set -->
+				<property name="microej.buildtypes.repository.dir" value="" />
 
 				<java classname="${easyant.fork.main.class}" fork="true" failonerror="true" dir="@{basedir}">
 					<!-- Restitute original classpath -->

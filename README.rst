@@ -1,6 +1,9 @@
 ..
-	Copyright 2018-2020 MicroEJ Corp. All rights reserved.
+	Copyright 2018-2021 MicroEJ Corp. All rights reserved.
 	Use of this source code is governed by a BSD-style license that can be found with this software.
+
+**WARNING**: this project is deprecated starting from MicroEJ SDK ``5.4.0``. 
+Please use the `MicroEJ Module Manager Build Kit <https://docs.microej.com/en/latest/ApplicationDeveloperGuide/mmm.html#build-kit>`_ instead.
 
 Description
 -----------
@@ -12,9 +15,9 @@ It focuses on running on Windows operating system and can be adapted for other o
 Requirements
 ------------
 
-*  Windows OS ``7`` or higher
-*  Java Development Kit (JDK) ``1.8.x``
-*  MicroEJ SDK ``4.1.5`` or higher. 
+*  Windows OS ``7`` or higher.
+*  Java Development Kit (JDK) ``1.8.x``.
+*  MicroEJ SDK ``4.1.5`` to ``5.3.1``. 
 
 The latest MicroEJ SDK version can be downloaded at https://developer.microej.com/get-started/.
 

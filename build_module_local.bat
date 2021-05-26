@@ -1,4 +1,4 @@
-REM Copyright 2018-2020 MicroEJ Corp. All rights reserved.
+REM Copyright 2018-2021 MicroEJ Corp. All rights reserved.
 REM Use of this source code is governed by a BSD-style license that can be found with this software.
 
 @echo off
@@ -18,8 +18,13 @@ if "%PROJECT_DIRECTORY%" == "" (
 )
 
 if "%MICROEJ_BUILD_JDK_HOME%" == "" (
-  echo Unknown environment variable MICROEJ_BUILD_JDK_HOME
-  goto :usage
+  if "%JAVA_HOME%" == "" (
+    echo Unknown environment variable MICROEJ_BUILD_JDK_HOME and no JAVA_HOME defined
+      goto :usage
+  ) else (
+    echo Set MICROEJ_BUILD_JDK_HOME to JAVA_HOME=%JAVA_HOME%
+    SET MICROEJ_BUILD_JDK_HOME=%JAVA_HOME%
+  )
 )
 
 
@@ -48,9 +53,11 @@ if "%BUILD_MODE%" == "release" (
   goto :usage
 )
 
-SET BUILD_KIT_HOME=%cd%\buildKit
+SET SCRIPT_DIR=%~dp0
+SET BUILD_KIT_HOME=%SCRIPT_DIR%\buildKit
+
 SET ANT_HOME=%BUILD_KIT_HOME%\ant
-"%MICROEJ_BUILD_JDK_HOME%\bin\java.exe" -classpath "%ANT_HOME%\lib\ant-launcher.jar" org.apache.tools.ant.launch.Launcher -lib "%ANT_HOME%\lib" -lib "%BUILD_KIT_HOME%%LIB_PATH%" -buildfile "%cd%\easyant\build-module.ant" -Dartifacts.publish.level="%PUBLISH_LEVEL%" -Dartifacts.fetch.level="%FETCH_LEVEL%" -DpersonalBuild="%PERSONAL_BUILD%" -Duser.ivysettings.file="%cd%\ivy\ivysettings.xml" -Deasyant.module.dir="%PROJECT_DIRECTORY%" -Dmicroej.buildtypes.repository.dir="%BUILD_KIT_HOME%\microej-build-repository" %PROPERTIES_FILE_OPTION%
+"%MICROEJ_BUILD_JDK_HOME%\bin\java.exe" -classpath "%ANT_HOME%\lib\ant-launcher.jar" org.apache.tools.ant.launch.Launcher -lib "%ANT_HOME%\lib" -lib "%BUILD_KIT_HOME%%LIB_PATH%" -buildfile "%SCRIPT_DIR%\easyant\build-module.ant" -Dbuild.compiler=org.eclipse.jdt.core.JDTCompilerAdapter -Dartifacts.publish.level="%PUBLISH_LEVEL%" -Dartifacts.fetch.level="%FETCH_LEVEL%" -DpersonalBuild="%PERSONAL_BUILD%" -Duser.ivysettings.file="%SCRIPT_DIR%\ivy\ivysettings.xml" -Deasyant.module.dir="%PROJECT_DIRECTORY%" -Dmicroej.buildtypes.repository.dir="%BUILD_KIT_HOME%\microej-build-repository" %PROPERTIES_FILE_OPTION%
 
 goto :theend
 

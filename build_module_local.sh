@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright 2020 MicroEJ Corp. All rights reserved.
+# Copyright 2020-2021 MicroEJ Corp. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be found with this software.
 
 # exit if a command fail
@@ -41,8 +41,14 @@ fi
 
 if [ "${MICROEJ_BUILD_JDK_HOME:-}" == "" ]
 then
-  echo -e "ERROR:\n\tUnknown environment variable MICROEJ_BUILD_JDK_HOME\n"
-  print_usage_and_exit
+    if [ "${JAVA_HOME:-}" == "" ]
+    then
+        echo -e "ERROR:\n\tUnknown environment variable MICROEJ_BUILD_JDK_HOME\n"
+        print_usage_and_exit
+    else
+        echo -e "Set MICROEJ_BUILD_JDK_HOME to JAVA_HOME=${JAVA_HOME}"
+        MICROEJ_BUILD_JDK_HOME=${JAVA_HOME}
+    fi
 fi
 
 if [ "${BUILD_MODE}" == "release" ]
@@ -75,6 +81,7 @@ else
   print_usage_and_exit
 fi
 
-BUILD_KIT_HOME="${PWD}/buildKit"
+SCRIPT_DIR=$(cd $(dirname "$0") && pwd)
+BUILD_KIT_HOME="${SCRIPT_DIR}/buildKit"
 ANT_HOME="${BUILD_KIT_HOME}/ant"
-"${MICROEJ_BUILD_JDK_HOME}/bin/java" -classpath "${ANT_HOME}/lib/ant-launcher.jar" org.apache.tools.ant.launch.Launcher -lib "${ANT_HOME}/lib" -buildfile "${PWD}/easyant/build-module.ant" -Dartifacts.publish.level="${PUBLISH_LEVEL}" -Dartifacts.fetch.level="${FETCH_LEVEL}" -DpersonalBuild="${PERSONAL_BUILD}" -Duser.ivysettings.file="${PWD}/ivy/ivysettings.xml" -Deasyant.module.dir="${PROJECT_DIRECTORY}" -Dmicroej.buildtypes.repository.dir="${BUILD_KIT_HOME}/microej-build-repository" ${PROPERTIES_FILE_OPTION}
+"${MICROEJ_BUILD_JDK_HOME}/bin/java" -classpath "${ANT_HOME}/lib/ant-launcher.jar" org.apache.tools.ant.launch.Launcher -lib "${ANT_HOME}/lib" -buildfile "${SCRIPT_DIR}/easyant/build-module.ant" -Dbuild.compiler=org.eclipse.jdt.core.JDTCompilerAdapter -Dartifacts.publish.level="${PUBLISH_LEVEL}" -Dartifacts.fetch.level="${FETCH_LEVEL}" -DpersonalBuild="${PERSONAL_BUILD}" -Duser.ivysettings.file="${SCRIPT_DIR}/ivy/ivysettings.xml" -Deasyant.module.dir="${PROJECT_DIRECTORY}" -Dmicroej.buildtypes.repository.dir="${BUILD_KIT_HOME}/microej-build-repository" ${PROPERTIES_FILE_OPTION}
